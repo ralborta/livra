@@ -8,6 +8,7 @@ import { CatalogModule } from './modules/catalog/catalog.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
+import { WhatsappCommerceModule } from './modules/whatsapp/whatsapp-commerce.module';
 import { LogisticsModule } from './modules/logistics/logistics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 
@@ -22,6 +23,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     OrdersModule,
     PaymentsModule,
     WhatsappModule,
+    WhatsappCommerceModule,
     LogisticsModule,
     NotificationsModule,
   ],
