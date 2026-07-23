@@ -1,0 +1,235 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  DRAFT
+  AWAITING_PAYMENT
+  PAID
+  ACCEPTED
+  PREPARING
+  READY
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  EXPIRED
+  REFUND_PENDING
+  DELIVERY_EXCEPTION
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REFUNDED
+}
+
+enum DeliveryStatus {
+  PENDING
+  OFFERED
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  EXCEPTION
+  CANCELLED
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branches Branch[]
+  users    User[]
+  products Product[]
+  orders   Order[]
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  address   String?
+  timezone  String   @default("America/Argentina/Buenos_Aires")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  products Product[]
+  orders   Order[]
+
+  @@index([tenantId])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  tenantId  String
+  email     String
+  name      String
+  role      String   @default("STAFF")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  tenantId    String
+  branchId    String?
+  name        String
+  description String?
+  priceCents  Int
+  currency    String   @default("ARS")
+  available   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  branch Branch? @relation(fields: [branchId], references: [id])
+
+  @@index([tenantId])
+  @@index([branchId])
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  tenantId      String
+  branchId      String?
+  status        OrderStatus @default(DRAFT)
+  version       Int         @default(1)
+  correlationId String
+  customerPhone String?
+  customerName  String?
+  address       String?
+  notes         String?
+  subtotalCents Int         @default(0)
+  deliveryCents Int         @default(0)
+  totalCents    Int         @default(0)
+  currency      String      @default("ARS")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id])
+  branch   Branch?       @relation(fields: [branchId], references: [id])
+  items    OrderItem[]
+  events   OrderEvent[]
+  payment  Payment?
+  delivery Delivery?
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([correlationId])
+}
+
+model OrderItem {
+  id         String @id @default(cuid())
+  orderId    String
+  productId  String?
+  name       String
+  quantity   Int
+  unitCents  Int
+  totalCents Int
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  type      String
+  fromStatus OrderStatus?
+  toStatus  OrderStatus?
+  payload   Json?
+  actor     String?
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  orderId          String        @unique
+  status           PaymentStatus @default(PENDING)
+  amountCents      Int
+  currency         String        @default("ARS")
+  provider         String        @default("mercadopago")
+  providerPaymentId String?
+  idempotencyKey   String        @unique
+  raw              Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Delivery {
+  id            String         @id @default(cuid())
+  orderId       String         @unique
+  status        DeliveryStatus @default(PENDING)
+  courierName   String?
+  courierPhone  String?
+  proofCode     String?
+  trackingToken String         @unique @default(cuid())
+  assignedAt    DateTime?
+  deliveredAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  order Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  pings LocationPing[]
+}
+
+model LocationPing {
+  id         String   @id @default(cuid())
+  deliveryId String
+  lat        Float
+  lng        Float
+  accuracyM  Float?
+  createdAt  DateTime @default(now())
+
+  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryId, createdAt])
+}
+
+model OutboxEvent {
+  id            String   @id @default(cuid())
+  eventType     String
+  aggregateId   String
+  tenantId      String
+  correlationId String
+  payload       Json
+  published     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([published, createdAt])
+}
+
+model WebhookReceipt {
+  id         String   @id @default(cuid())
+  provider   String
+  eventId    String
+  payload    Json
+  processed  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@unique([provider, eventId])
+}

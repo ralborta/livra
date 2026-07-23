@@ -1,0 +1,18 @@
+{
+  "name": "livra",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Livra — marketplace conversacional, pagos y última milla",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev:api": "pnpm --filter @livra/api dev",
+    "dev:web": "pnpm --filter @livra/web dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "db:generate": "pnpm --filter @livra/api prisma:generate",
+    "db:migrate": "pnpm --filter @livra/api prisma:migrate"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
